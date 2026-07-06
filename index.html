@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Survivor League</title>
+<style>
+  :root {
+    --paper: #faf6ef;
+    --ink: #1c1b1a;
+    --faint: #8a857c;
+    --rule: #d8d2c4;
+    --accent: #e4572e;
+    --accent2: #2e6fe4;
+    --good: #1f9d55;
+    --bad: #c0392b;
+    --highlight: #fff3b0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Courier Prime", "Courier New", Courier, monospace;
+    background: var(--paper); color: var(--ink);
+    max-width: 940px; margin: 0 auto; padding: 24px 16px 80px; line-height: 1.5;
+  }
+  h1 { font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
+  h2 { font-size: 1.05rem; letter-spacing: 1px; text-transform: uppercase;
+       border-bottom: 2px solid var(--ink); padding-bottom: 4px; margin: 24px 0 12px; }
+  h3 { font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; margin: 12px 0 6px; }
+  header { display: flex; justify-content: space-between; align-items: baseline;
+           border-bottom: 3px double var(--ink); padding-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  .sub { color: var(--faint); font-size: 0.8rem; }
+  nav { display: flex; gap: 4px; margin: 16px 0; flex-wrap: wrap; }
+  nav button {
+    font: inherit; background: none; border: 1px solid var(--ink);
+    padding: 6px 12px; cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
+    font-size: 0.72rem; color: var(--ink);
+  }
+  nav button.active { background: var(--ink); color: var(--paper); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px dashed var(--rule); vertical-align: middle; }
+  th { text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px;
+       border-bottom: 2px solid var(--ink); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.leader td { background: var(--highlight); }
+  .mgr-name { font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  button.act {
+    font: inherit; font-size: 0.75rem; background: var(--ink); color: var(--paper);
+    border: none; padding: 6px 14px; cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
+  }
+  button.act.warn { background: var(--bad); }
+  button.act.ghost { background: none; color: var(--ink); border: 1px solid var(--ink); }
+  button.act:disabled { opacity: 0.4; cursor: default; }
+  button.tiny { font: inherit; font-size: 0.7rem; background: none; border: none;
+                color: var(--accent2); cursor: pointer; text-decoration: underline; padding: 0 4px; }
+  button.tiny.del { color: var(--bad); }
+  input, select, textarea {
+    font: inherit; font-size: 0.85rem; background: #fffdf8; color: var(--ink);
+    border: 1px solid var(--rule); border-bottom: 1px solid var(--ink); padding: 4px 6px;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
+  input[type=checkbox] { width: auto; accent-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+  .badge { color: var(--accent); font-size: 0.75rem; letter-spacing: 1px; }
+  .card { border: 1px solid var(--rule); padding: 12px 14px; margin: 12px 0; background: #fffdf8; }
+  .settings-grid { display: grid; grid-template-columns: 1fr 80px; gap: 6px 12px;
+                   max-width: 420px; align-items: center; font-size: 0.85rem; }
+  .muted { color: var(--faint); font-size: 0.78rem; }
+  .flash { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+           background: var(--ink); color: var(--paper); padding: 8px 18px; font-size: 0.8rem;
+           letter-spacing: 1px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9; }
+  .flash.show { opacity: 1; }
+  .chat-log { max-height: 420px; overflow-y: auto; border: 1px solid var(--rule);
+              background: #fffdf8; padding: 10px 12px; }
+  .chat-msg { margin-bottom: 8px; font-size: 0.85rem; white-space: pre-wrap; }
+  .chat-msg .who { font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; }
+  .chat-msg .when { color: var(--faint); font-size: 0.68rem; margin-left: 6px; }
+  .txn { font-size: 0.78rem; border-bottom: 1px dashed var(--rule); padding: 4px 0; }
+  .txn .when { color: var(--faint); font-size: 0.68rem; }
+  ol.steps { margin: 10px 0 10px 22px; font-size: 0.88rem; }
+  ol.steps li { margin-bottom: 8px; }
+  code { background: #efe9dc; padding: 0 4px; font-size: 0.82rem; }
+  .center { max-width: 560px; margin: 40px auto; }
+  .conn { font-size: 0.7rem; letter-spacing: 1px; }
+  .conn.ok { color: var(--good); }
+  /* survivor-specific */
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+               gap: 6px; margin: 10px 0; }
+  .team-grid button { font: inherit; font-size: 0.76rem; padding: 8px 6px; background: #fffdf8;
+    border: 1px solid var(--ink); cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ink); }
+  .team-grid button.used { border-color: var(--rule); color: var(--faint);
+    text-decoration: line-through; cursor: default; background: none; }
+  .team-grid button.sel { background: var(--ink); color: var(--paper); }
+  .st-alive { color: var(--good); font-weight: 700; letter-spacing: 1px; }
+  .st-dead { color: var(--bad); font-weight: 700; letter-spacing: 1px; }
+  .res-w { color: var(--good); font-weight: 700; }
+  .res-d { color: var(--faint); }
+  .res-l { color: var(--bad); font-weight: 700; }
+  .champ { border: 3px double var(--ink); background: var(--highlight);
+           padding: 14px; margin: 14px 0; text-align: center; letter-spacing: 1px; }
+  .champ .big { font-size: 1.2rem; font-weight: 700; text-transform: uppercase; }
+  .countdown { font-size: 1.05rem; letter-spacing: 1px; }
+  .board td, .board th { font-size: 0.72rem; padding: 3px 5px; white-space: nowrap; }
+  .board td.me { background: var(--highlight); }
+  .board-wrap { overflow-x: auto; }
+  .sealed { border-left: 4px solid var(--accent); background: var(--highlight);
+            padding: 10px 14px; margin: 12px 0; }
+  .auto-tag { font-size: 0.65rem; border: 1px solid var(--faint); color: var(--faint);
+              padding: 0 4px; letter-spacing: 1px; }
+  .warn-banner { border: 2px solid var(--accent); background: var(--highlight);
+                 padding: 10px 14px; margin: 12px 0; font-size: 0.85rem; }
+  .resbtns button { font: inherit; font-size: 0.75rem; width: 34px; padding: 4px 0;
+    background: none; border: 1px solid var(--rule); cursor: pointer; color: var(--faint); }
+  .resbtns button.on-W { background: var(--good); border-color: var(--good); color: #fff; }
+  .resbtns button.on-D { background: var(--faint); border-color: var(--faint); color: #fff; }
+  .resbtns button.on-L { background: var(--bad); border-color: var(--bad); color: #fff; }
+  @media (max-width: 600px) { body { padding: 12px 8px 80px; } th, td { padding: 4px 4px; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="league-name">Survivor League</h1>
+    <div class="sub">premier league survivor &middot; last one standing</div>
+  </div>
+  <div class="row" style="margin:0">
+    <span id="conn" class="conn">connecting&hellip;</span>
+    <span id="who" class="badge"></span>
+    <button class="act ghost" id="session-btn" onclick="sessionBtn()">Sign in</button>
+  </div>
+</header>
+
+<nav id="nav" style="display:none">
+  <button data-tab="board" onclick="setTab('board')">Board</button>
+  <button data-tab="pick" onclick="setTab('pick')">Pick</button>
+  <button data-tab="results" onclick="setTab('results')">Results</button>
+  <button data-tab="chat" onclick="setTab('chat')">Chat</button>
+  <button data-tab="settings" onclick="setTab('settings')">Settings</button>
+</nav>
+
+<main id="main"><p class="muted" style="margin-top:30px">loading&hellip;</p></main>
+<div class="flash" id="flash"></div>
+
+<script type="module">
+"use strict";
+/* ================= config ================= */
+const EMBEDDED_CONFIG = {"apiKey":"AIzaSyAtYt6dv8NVwqjjr_siZwajRgqSeZFqkYc","authDomain":"pl-survivor.firebaseapp.com","projectId":"pl-survivor","storageBucket":"pl-survivor.firebasestorage.app","messagingSenderId":"171696865591","appId":"1:171696865591:web:4677a5aa3053b91f931ab2","measurementId":"G-NVW9B50SEG"};
+const LS_CFG = "survivor-league-fbconfig";
+const DEFAULT_SESSIONS = { s1: { start: 1, end: 19, mid: 10 },
+                           s2: { start: 20, end: 38, mid: 29 } };
+
+/* ================= helpers ================= */
+const $ = id => document.getElementById(id);
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function flash(msg) {
+  const f = $("flash");
+  f.textContent = msg; f.classList.add("show");
+  clearTimeout(f._t); f._t = setTimeout(() => f.classList.remove("show"), 2000);
+}
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function fmtWhen(ts) {
+  if (!ts || !ts.toDate) return "";
+  const d = ts.toDate();
+  return d.toLocaleDateString(undefined, { month:"short", day:"numeric" }) + " " +
+         d.toLocaleTimeString(undefined, { hour:"2-digit", minute:"2-digit" });
+}
+function fmtDeadline(ms) {
+  const d = new Date(ms);
+  return d.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" }) +
+         " " + d.toLocaleTimeString(undefined, { hour:"2-digit", minute:"2-digit" });
+}
+function fmtCountdown(ms) {
+  let s = Math.max(0, Math.floor((ms - Date.now()) / 1000));
+  const d = Math.floor(s / 86400); s -= d * 86400;
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60);
+  return d ? `${d}d ${h}h ${m}m` : h ? `${h}h ${m}m` : `${m}m`;
+}
+function dtLocalValue(ms) {
+  const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000);
+  return d.toISOString().slice(0, 16);
+}
+function slug(name) { return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
+
+/* ================= state cache ================= */
+let F = null, db = null, auth = null, authMod = null;
+let user = null;             // firebase auth user (google)
+let C = {
+  config: null,              // meta/config: {leagueName, commissionerEmail, s1, s2}
+  teams: null,               // meta/teams: {list:[{id, name, short}]}
+  players: [],               // [{id, name, email, admin}]
+  gws: {},                   // gw -> {deadline: millis, results: {teamId: W|D|L}}
+  picks: {},                 // gw -> {pid: teamId}
+  buybacks: {},              // session n -> {pid: rejoinGw}
+  chat: [], txns: [],
+};
+let ready = { config: false, teams: false, players: false, gws: false, picks: false, buybacks: false };
+let tab = "board";
+let viewSession = null;      // 1|2, null = auto
+let viewGw = null;           // results tab gw, null = auto
+let pendingTeam = null;      // team selected on pick tab awaiting confirm
+
+function me() {
+  if (!user) return null;
+  const e = user.email.toLowerCase();
+  return C.players.find(p => (p.email || "").toLowerCase() === e) || null;
+}
+function isAdmin() {
+  if (!user) return false;
+  if ((C.config?.commissionerEmail || "").toLowerCase() === user.email.toLowerCase()) return true;
+  return !!me()?.admin;
+}
+function playerById(pid) { return C.players.find(p => p.id === pid); }
+function teamById(id) { return (C.teams?.list || []).find(t => t.id === id); }
+function teamsAlpha() { return [...(C.teams?.list || [])].sort((a, b) => a.name.localeCompare(b.name)); }
+function deadlineOf(gw) { return C.gws[gw]?.deadline || null; }
+function resultsOf(gw) { return C.gws[gw]?.results || {}; }
+function storedPick(gw, pid) { return (C.picks[gw] || {})[pid] || null; }
+
+/* ================= sessions & survivor engine ================= */
+function sessions() {
+  const c = C.config || {};
+  return [ { n: 1, ...DEFAULT_SESSIONS.s1, ...(c.s1 || {}) },
+           { n: 2, ...DEFAULT_SESSIONS.s2, ...(c.s2 || {}) } ];
+}
+function sessionByN(n) { return sessions().find(s => s.n === n); }
+
+/* Derived survivor state for one session. Pure function of the raw docs, so every
+   client computes identical eliminations, auto-assigns and champions — no server needed.
+   Processes gameweeks in order; stops at the first gw whose deadline hasn't passed
+   (that's the open "pick" gw) or that hasn't been opened at all. */
+function runSession(s) {
+  const ids = C.players.map(p => p.id);
+  const st = {};
+  const bb = C.buybacks[s.n] || {};
+  ids.forEach(pid => st[pid] = { alive: true, used: new Set(), wins: 0, elimGW: null,
+                                 boughtBack: bb[pid] != null, picks: {} });
+  let pickGw = null, lastSealed = 0, pending = false, started = false;
+  for (let gw = s.start; gw <= s.end; gw++) {
+    const dl = deadlineOf(gw);
+    if (!dl) break;
+    started = true;
+    if (Date.now() < dl) { pickGw = gw; break; }
+    lastSealed = gw;
+    const res = resultsOf(gw);
+    for (const pid of ids) {
+      const p = st[pid];
+      if (!p.alive) {
+        if (bb[pid] === gw) p.alive = true;   // buy-back rejoins this gw
+        else continue;
+      }
+      let team = storedPick(gw, pid), auto = false;
+      if (team && (!teamById(team) || p.used.has(team))) team = null;
+      if (!team) {
+        const t = teamsAlpha().find(x => !p.used.has(x.id));
+        if (!t) continue;                     // no teams left / none configured
+        team = t.id; auto = true;
+      }
+      p.used.add(team);
+      const r = res[team] || null;
+      p.picks[gw] = { team, result: r, auto };
+      if (!r) pending = true;
+      else if (r === "W") p.wins++;
+      else if (r === "L") { p.alive = false; p.elimGW = gw; }
+    }
+  }
+  const nextGw = pickGw || lastSealed + 1;
+  return { s, st, ids, pickGw, lastSealed, pending, started, nextGw,
+           champion: championOf(s, st, ids, { pickGw, lastSealed, pending, started, nextGw }) };
+}
+function canBuyBackNow(E, pid) {
+  const p = E.st[pid];
+  return p && !p.alive && !p.boughtBack && E.nextGw <= E.s.mid && E.nextGw <= E.s.end;
+}
+/* Tiebreak: never-bought-back beats bought-back, then most wins, then co-champions. */
+function tiebreak(group, st) {
+  const key = pid => [ st[pid].boughtBack ? 1 : 0, -st[pid].wins ];
+  const sorted = [...group].sort((a, b) => key(a)[0] - key(b)[0] || key(a)[1] - key(b)[1]);
+  const top = key(sorted[0]);
+  return sorted.filter(pid => key(pid)[0] === top[0] && key(pid)[1] === top[1]);
+}
+function championOf(s, st, ids, info) {
+  if (!info.started || !ids.length || info.pending) return null;
+  const alive = ids.filter(id => st[id].alive);
+  const buyable = ids.some(id => !st[id].alive && !st[id].boughtBack &&
+                                 info.nextGw <= s.mid && info.nextGw <= s.end);
+  if (alive.length === 1 && !buyable) return { winners: alive, why: "last one standing" };
+  if (alive.length === 0 && !buyable) {
+    const maxE = Math.max(...ids.map(id => st[id].elimGW || 0));
+    if (!maxE) return null;
+    const grp = ids.filter(id => st[id].elimGW === maxE);
+    return { winners: tiebreak(grp, st), why: `GW ${maxE} wipeout — tiebreak` };
+  }
+  if (info.lastSealed === s.end && alive.length > 1)
+    return { winners: tiebreak(alive, st), why: "survived to the end — tiebreak" };
+  if (info.lastSealed === s.end && alive.length === 1)
+    return { winners: alive, why: "last one standing" };
+  return null;
+}
+/* The session players are currently acting in: latest session with any opened gw. */
+function activeSessionN() {
+  const [e1, e2] = sessions().map(runSession);
+  return e2.started ? 2 : 1;
+}
+
+/* ================= firestore boot ================= */
+function getConfig() {
+  if (EMBEDDED_CONFIG) return EMBEDDED_CONFIG;
+  try { return JSON.parse(localStorage.getItem(LS_CFG)); } catch (e) { return null; }
+}
+async function boot() {
+  const cfg = getConfig();
+  if (!cfg) { renderConnect(); return; }
+  try {
+    const appMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    F = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    authMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    const app = appMod.initializeApp(cfg);
+    db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+    auth = authMod.getAuth(app);
+    authMod.onAuthStateChanged(auth, u => { user = u; render(); });
+  } catch (e) {
+    $("main").innerHTML = `<div class="center"><h2>Connection failed</h2>
+      <p class="muted">${esc(e.message)}</p>
+      <p style="margin-top:10px">Check the Firebase config, or your internet connection.</p>
+      <div class="row"><button class="act warn" onclick="clearCfg()">Clear saved config</button></div></div>`;
+    $("conn").textContent = "offline";
+    return;
+  }
+  subscribe();
+}
+function subscribe() {
+  F.onSnapshot(F.doc(db, "meta", "config"), snap => {
+    C.config = snap.exists() ? snap.data() : null;
+    ready.config = true; render();
+  }, connErr);
+  F.onSnapshot(F.doc(db, "meta", "teams"), snap => {
+    C.teams = snap.exists() ? snap.data() : null;
+    ready.teams = true; render();
+  }, connErr);
+  F.onSnapshot(F.collection(db, "players"), snap => {
+    C.players = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    ready.players = true; render();
+  }, connErr);
+  F.onSnapshot(F.collection(db, "gws"), snap => {
+    C.gws = {};
+    snap.docs.forEach(d => { C.gws[d.id] = d.data(); });
+    ready.gws = true; render();
+  }, connErr);
+  F.onSnapshot(F.collection(db, "picks"), snap => {
+    C.picks = {};
+    snap.docs.forEach(d => { C.picks[d.id] = d.data(); });
+    ready.picks = true; render();
+  }, connErr);
+  F.onSnapshot(F.collection(db, "buybacks"), snap => {
+    C.buybacks = {};
+    snap.docs.forEach(d => { C.buybacks[d.id] = d.data(); });
+    ready.buybacks = true; render();
+  }, connErr);
+  F.onSnapshot(F.query(F.collection(db, "chat"), F.orderBy("ts", "asc"), F.limitToLast(100)),
+    snap => { C.chat = snap.docs.map(d => d.data()); if (tab === "chat") render(); }, connErr);
+  F.onSnapshot(F.query(F.collection(db, "txns"), F.orderBy("ts", "desc"), F.limit(40)),
+    snap => { C.txns = snap.docs.map(d => d.data()); if (tab === "board") render(); }, connErr);
+}
+function connErr(e) {
+  $("conn").textContent = "connection error";
+  $("conn").classList.remove("ok");
+  console.error(e);
+}
+function allReady() { return Object.values(ready).every(Boolean); }
+
+/* ================= writes ================= */
+async function logTxn(text) {
+  await F.addDoc(F.collection(db, "txns"), { ts: F.serverTimestamp(), text });
+}
+async function saveConfig(patch) {
+  await F.setDoc(F.doc(db, "meta", "config"), patch, { merge: true });
+}
+
+/* ================= auth ================= */
+async function sessionBtn() {
+  if (!auth) { flash("not connected yet"); return; }
+  if (user) { await authMod.signOut(auth); flash("signed out"); return; }
+  try {
+    await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider());
+  } catch (e) {
+    if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request")
+      flash(e.code === "auth/unauthorized-domain"
+        ? "domain not authorized in Firebase — see Settings notes" : "sign-in failed: " + e.code);
+  }
+}
+async function claimLeague() {
+  if (!user || C.config?.commissionerEmail) return;
+  await saveConfig({ commissionerEmail: user.email });
+  await logTxn(`${user.email} claimed the league as commissioner`);
+  flash("you are the commissioner");
+}
+
+/* ================= render root ================= */
+function setTab(t) { tab = t; pendingTeam = null; render(); }
+function render() {
+  const cfg = C.config;
+  $("league-name").textContent = cfg?.leagueName || "Survivor League";
+  document.title = cfg?.leagueName || "Survivor League";
+  const m = me();
+  $("who").textContent = user
+    ? "◆ " + (m ? m.name : user.email) + (isAdmin() ? " (admin)" : m ? "" : " (not on roster)")
+    : "";
+  $("session-btn").textContent = user ? "Sign out" : "Sign in with Google";
+  if (allReady()) { $("conn").textContent = "● live"; $("conn").classList.add("ok"); }
+
+  if (!db) return; // connect screen renders itself
+  if (!allReady()) { $("main").innerHTML = `<p class="muted" style="margin-top:30px">syncing&hellip;</p>`; return; }
+  if (!C.config) { $("nav").style.display = "none"; renderCreateLeague(); return; }
+
+  $("nav").style.display = "";
+  document.querySelectorAll("nav button").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === tab));
+  let banner = "";
+  if (!C.config.commissionerEmail)
+    banner = `<div class="warn-banner">⚠ No commissioner set. ${user
+      ? `<button class="tiny" onclick="claimLeague()">Claim the league</button> (you become admin)`
+      : "Sign in with Google to claim the league."}</div>`;
+  const views = { board: renderBoard, pick: renderPick, results: renderResults,
+                  chat: renderChat, settings: renderSettings };
+  $("main").innerHTML = banner + views[tab]();
+  if (tab === "chat") { const el = $("chat-log"); if (el) el.scrollTop = el.scrollHeight; }
+}
+
+/* ================= connect / create screens ================= */
+function renderConnect() {
+  $("conn").textContent = "not connected";
+  $("main").innerHTML = `<div class="center">
+  <h2>One-time setup</h2>
+  <p class="muted">This app needs a (free) Firebase project as its shared database. Takes about 5 minutes:</p>
+  <ol class="steps">
+    <li>Go to <code>console.firebase.google.com</code> &rarr; <strong>Add project</strong> (any name, analytics off is fine).</li>
+    <li><strong>Build &rarr; Firestore Database &rarr; Create database</strong> &rarr; start in <strong>test mode</strong>.</li>
+    <li>Test-mode rules expire after 30 days &mdash; in the <strong>Rules</strong> tab set the inner rule to:<br>
+      <code>allow read, write: if true;</code> then Publish.</li>
+    <li><strong>Build &rarr; Authentication &rarr; Get started &rarr; Sign-in method &rarr; Google &rarr; Enable</strong> (set a support email).</li>
+    <li>Authentication &rarr; <strong>Settings &rarr; Authorized domains</strong>: add every domain the app will live on
+      (e.g. <code>jgysin.github.io</code>). <code>localhost</code> is already there.</li>
+    <li>Gear icon &rarr; <strong>Project settings</strong> &rarr; "Your apps" &rarr; <strong>&lt;/&gt;</strong> (web),
+      register the app (no hosting), copy the <code>firebaseConfig = { ... }</code> block.</li>
+    <li>Paste it below.</li>
+  </ol>
+  <textarea id="cfg-input" rows="8" style="width:100%" placeholder="const firebaseConfig = { apiKey: ... };"></textarea>
+  <div class="row"><button class="act" onclick="saveCfgInput()">Connect</button></div>
+  <p class="muted">After connecting, use <strong>Settings &rarr; Download shareable copy</strong> to get a version
+    with the connection baked in &mdash; that's the file you deploy / send to friends.</p>
+  </div>`;
+}
+function saveCfgInput() {
+  const raw = $("cfg-input").value;
+  const m = raw.match(/\{[\s\S]*\}/);
+  if (!m) { flash("couldn't find a { ... } config block"); return; }
+  let cfg;
+  try { cfg = Function("return (" + m[0] + ")")(); } catch (e) { flash("config didn't parse"); return; }
+  if (!cfg.apiKey || !cfg.projectId) { flash("config missing apiKey / projectId"); return; }
+  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+  flash("connected — loading");
+  location.reload();
+}
+function clearCfg() { localStorage.removeItem(LS_CFG); location.reload(); }
+
+function renderCreateLeague() {
+  $("main").innerHTML = `<div class="center">
+  <h2>Create your league</h2>
+  ${user ? `
+  <p class="muted">Signed in as <strong>${esc(user.email)}</strong> &mdash; you'll be the commissioner.</p>
+  <div class="row"><input id="new-league-name" placeholder="League name" style="width:100%"
+    onkeydown="if(event.key==='Enter')createLeague()"></div>
+  <div class="row"><button class="act" onclick="createLeague()">Create league</button></div>`
+  : `<p class="muted">Connected to Firebase. Sign in with Google (top right) to create the league &mdash;
+     your account becomes the commissioner.</p>`}
+  </div>`;
+}
+async function createLeague() {
+  if (!user) { flash("sign in first"); return; }
+  const name = $("new-league-name").value.trim() || "Survivor League";
+  await F.setDoc(F.doc(db, "meta", "config"),
+    { leagueName: name, commissionerEmail: user.email, ...DEFAULT_SESSIONS });
+  tab = "settings";
+  flash("league created — add teams & players in Settings");
+}
+
+/* ================= board ================= */
+function playerName(pid) { return playerById(pid)?.name || "?"; }
+function statusCell(E, pid) {
+  const p = E.st[pid];
+  if (p.alive) return `<span class="st-alive">ALIVE</span>`;
+  if (canBuyBackNow(E, pid)) return `<span class="st-dead">OUT GW${p.elimGW}</span> <span class="muted">(can buy back)</span>`;
+  return `<span class="st-dead">OUT GW${p.elimGW}</span>`;
+}
+function championHtml(E) {
+  if (!E.champion) return "";
+  const names = E.champion.winners.map(playerName).map(esc).join(" & ");
+  return `<div class="champ"><div class="muted">session ${E.s.n} champion${E.champion.winners.length > 1 ? "s" : ""}
+    &mdash; ${esc(E.champion.why)}</div><div class="big">🏆 ${names}</div></div>`;
+}
+function renderBoard() {
+  if (!C.players.length)
+    return `<p class="muted" style="margin-top:20px">No players yet. Commissioner: add them in Settings.</p>`;
+  const n = viewSession || activeSessionN();
+  const E = runSession(sessionByN(n));
+  let html = `<div class="row">
+    ${sessions().map(s => `<button class="act ${s.n === n ? "" : "ghost"}"
+      onclick="setViewSession(${s.n})">Session ${s.n} <span style="opacity:.7">GW${s.start}&ndash;${s.end}</span></button>`).join("")}
+  </div>`;
+  html += championHtml(E);
+  if (!E.started)
+    html += `<p class="muted">Session ${n} hasn't started &mdash; the commissioner opens GW ${E.s.start} on the Results tab.</p>`;
+
+  /* standings */
+  const rows = E.ids.map(pid => ({ pid, ...E.st[pid] }))
+    .sort((a, b) => (b.alive - a.alive) || ((b.elimGW || 99) - (a.elimGW || 99)) || (b.wins - a.wins)
+      || playerName(a.pid).localeCompare(playerName(b.pid)));
+  html += `<h2>Session ${n} board${E.lastSealed ? ` <span class="muted">&mdash; through GW ${E.lastSealed}</span>` : ""}</h2>
+  <table><tr><th>Player</th><th>Status</th><th class="num">Wins</th><th class="num">Teams used</th><th>Buy-back</th></tr>`;
+  for (const r of rows) {
+    const winner = E.champion?.winners.includes(r.pid);
+    html += `<tr${winner ? ' class="leader"' : ""}>
+      <td class="mgr-name">${winner ? "🏆 " : ""}${esc(playerName(r.pid))}</td>
+      <td>${statusCell(E, r.pid)}</td>
+      <td class="num">${r.wins}</td><td class="num">${r.used.size}</td>
+      <td>${r.boughtBack ? `used (GW${(C.buybacks[n] || {})[r.pid]})` : '<span class="muted">&mdash;</span>'}</td></tr>`;
+  }
+  html += `</table>`;
+
+  /* pick grid for sealed gws */
+  if (E.lastSealed >= E.s.start) {
+    const gws = [];
+    for (let g = E.s.start; g <= E.lastSealed; g++) gws.push(g);
+    html += `<h2>Picks &amp; results</h2><div class="board-wrap"><table class="board">
+      <tr><th>Player</th>${gws.map(g => `<th>GW${g}</th>`).join("")}</tr>`;
+    for (const r of rows) {
+      html += `<tr><td class="mgr-name${me()?.id === r.pid ? " me" : ""}">${esc(playerName(r.pid))}</td>`;
+      for (const g of gws) {
+        const pk = r.picks[g];
+        html += `<td>${pk
+          ? `${esc(teamById(pk.team)?.short || "?")}${pk.auto ? `<span class="auto-tag" title="auto-assigned">A</span>` : ""}
+             <span class="res-${(pk.result || "?").toLowerCase()}">${pk.result || "?"}</span>`
+          : `<span class="muted">${r.elimGW && g > r.elimGW ? "✕" : "&mdash;"}</span>`}</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</table></div>
+    <p class="muted"><span class="auto-tag">A</span> = auto-assigned (missed the deadline &mdash; first unused team alphabetically).
+      W wins count, D survives, L eliminates.</p>`;
+  }
+
+  /* txn log */
+  if (C.txns.length) {
+    html += `<h2>Log</h2>`;
+    for (const t of C.txns)
+      html += `<div class="txn">${esc(t.text)} <span class="when">${fmtWhen(t.ts)}</span></div>`;
+  }
+  return html;
+}
+function setViewSession(nn) { viewSession = nn; render(); }
+
+/* ================= pick tab ================= */
+function renderPick() {
+  if (!C.players.length || !(C.teams?.list || []).length)
+    return `<p class="muted" style="margin-top:20px">The commissioner needs to add teams and players in Settings first.</p>`;
+  const n = activeSessionN();
+  const E = runSession(sessionByN(n));
+  const m = me();
+  let html = `<h2>Session ${n} &mdash; make your pick</h2>`;
+  html += championHtml(E);
+  if (E.champion && n === 2)
+    return html + `<p class="muted">The season is complete. See the Board for the full story.</p>`;
+  if (E.champion)
+    return html + `<p class="muted">Session ${n} is decided. Session 2 opens when the commissioner opens GW ${sessionByN(2).start}.</p>`;
+  if (!E.pickGw) {
+    return html + `<p class="muted">${E.started
+      ? `GW ${E.lastSealed} is sealed. Waiting for the commissioner to enter results / open GW ${E.nextGw}.`
+      : `Session ${n} hasn't started &mdash; waiting for the commissioner to open GW ${E.s.start}.`}</p>`;
+  }
+  const gw = E.pickGw, dl = deadlineOf(gw);
+  html += `<div class="sealed"><strong>GW ${gw}</strong> &mdash; picks lock ${esc(fmtDeadline(dl))}
+    <div class="countdown">⏱ ${fmtCountdown(dl)}</div>
+    <div class="muted">win or draw survives &middot; a loss eliminates &middot; each team once per session</div></div>`;
+
+  if (!user) return html + `<p class="muted">Sign in with Google (top right) to make your pick.</p>`;
+  if (!m) return html + `<p class="muted">Your Google account (${esc(user.email)}) isn't linked to a player.
+    Ask the commissioner to add your email in Settings.</p>`;
+
+  const p = E.st[m.id];
+  if (!p.alive) {
+    if (canBuyBackNow(E, m.id)) {
+      html += `<div class="card"><span class="st-dead">YOU'RE OUT (GW ${p.elimGW})</span>
+      <p class="muted" style="margin:8px 0">One buy-back per session, allowed through GW ${E.s.mid}.
+        Your used-teams list stays with you. It'll cost you the tiebreaker &mdash; and your dignity.</p>
+      <button class="act warn" onclick="buyBack(${n},${gw})">Buy back in for GW ${gw}</button></div>`;
+    } else {
+      html += `<div class="card"><span class="st-dead">YOU'RE OUT (GW ${p.elimGW})</span>
+      <p class="muted" style="margin:8px 0">${p.boughtBack
+        ? "Buy-back already used. Enjoy the spectator seats &mdash; chat is that way."
+        : `Buy-backs closed after GW ${E.s.mid}. See you in ${n === 1 ? "Session 2" : "next season"}.`}</p></div>`;
+    }
+  } else {
+    const cur = storedPick(gw, m.id);
+    const sel = pendingTeam || cur;
+    html += `<h3>Your pick ${cur ? `&mdash; <span class="st-alive">${esc(teamById(cur)?.name || "?")}</span>` : "&mdash; none yet"}</h3>
+    <div class="team-grid">`;
+    for (const t of teamsAlpha()) {
+      const used = p.used.has(t.id);
+      html += `<button class="${used ? "used" : t.id === sel ? "sel" : ""}"
+        ${used ? "disabled" : `onclick="pickTeam('${t.id}')"`}>${esc(t.name)}</button>`;
+    }
+    html += `</div>`;
+    if (pendingTeam && pendingTeam !== cur)
+      html += `<div class="row"><button class="act" onclick="confirmPick(${gw},'${pendingTeam}')">
+        Lock in ${esc(teamById(pendingTeam)?.name || "")}</button>
+        <button class="act ghost" onclick="cancelPickSel()">Cancel</button></div>`;
+    html += `<p class="muted">You can change your pick until the deadline. Miss it and you're auto-assigned
+      your first unused team alphabetically${(() => { const t = teamsAlpha().find(x => !p.used.has(x.id));
+        return t ? ` (right now: ${esc(t.name)})` : ""; })()}.</p>`;
+  }
+
+  /* who's picked in (no teams shown) */
+  const aliveIds = E.ids.filter(pid => E.st[pid].alive || (C.buybacks[n] || {})[pid] === gw);
+  html += `<h3>Picked in</h3><table><tr><th>Player</th><th>Status</th></tr>`;
+  for (const pid of aliveIds) {
+    html += `<tr><td class="mgr-name">${esc(playerName(pid))}</td>
+      <td>${storedPick(gw, pid) ? `<span class="st-alive">✓ sealed</span>` : `<span class="muted">&hellip; thinking</span>`}</td></tr>`;
+  }
+  html += `</table><p class="muted">Everyone's picks are revealed together when the deadline passes.
+    (Honor system: the database itself is open &mdash; a determined snoop could peek. Don't be that person.)</p>`;
+
+  /* my history */
+  if (m && Object.keys(E.st[m.id].picks).length) {
+    html += `<h3>Your session ${n} picks</h3><table><tr><th>GW</th><th>Team</th><th>Result</th></tr>`;
+    for (const [g, pk] of Object.entries(E.st[m.id].picks))
+      html += `<tr><td>GW${g}</td><td>${esc(teamById(pk.team)?.name || "?")}${pk.auto ? ` <span class="auto-tag">A</span>` : ""}</td>
+        <td class="res-${(pk.result || "?").toLowerCase()}">${pk.result || "pending"}</td></tr>`;
+    html += `</table>`;
+  }
+  return html;
+}
+function pickTeam(id) { pendingTeam = id; render(); }
+function cancelPickSel() { pendingTeam = null; render(); }
+async function confirmPick(gw, teamId) {
+  const m = me();
+  if (!m) return;
+  const dl = deadlineOf(gw);
+  if (!dl || Date.now() >= dl) { flash("deadline has passed"); pendingTeam = null; render(); return; }
+  const n = activeSessionN();
+  const E = runSession(sessionByN(n));
+  const p = E.st[m.id];
+  if (!p || (!p.alive && (C.buybacks[n] || {})[m.id] !== gw)) { flash("you're not in this gameweek"); return; }
+  if (p.used.has(teamId)) { flash("already used that team this session"); return; }
+  await F.setDoc(F.doc(db, "picks", String(gw)), { [m.id]: teamId }, { merge: true });
+  pendingTeam = null;
+  flash("pick sealed — " + (teamById(teamId)?.name || ""));
+}
+async function buyBack(n, gw) {
+  const m = me();
+  if (!m) return;
+  const E = runSession(sessionByN(n));
+  if (!canBuyBackNow(E, m.id)) { flash("buy-back not available"); return; }
+  if (!confirm(`Buy back into Session ${n} for GW ${gw}? One per session — this is it.`)) return;
+  await F.setDoc(F.doc(db, "buybacks", String(n)), { [m.id]: gw }, { merge: true });
+  await logTxn(`${m.name} bought back in (Session ${n}, from GW ${gw}) — shameless`);
+  flash("you're back in — pick a team");
+}
+
+/* ================= results tab (commissioner) ================= */
+function renderResults() {
+  const admin = isAdmin();
+  const gw = viewGw || (() => {
+    const E = runSession(sessionByN(activeSessionN()));
+    return Math.min(E.nextGw, E.s.end);
+  })();
+  const opts = Array.from({ length: 38 }, (_, i) => i + 1)
+    .map(g => `<option value="${g}"${g === gw ? " selected" : ""}>GW ${g}${C.gws[g] ? " ●" : ""}</option>`).join("");
+  let html = `<h2>Gameweek results</h2>
+  <div class="row"><select onchange="setViewGw(+this.value)">${opts}</select>
+    ${admin ? `<span class="muted">open the GW, then enter W/D/L once matches finish</span>`
+            : `<span class="muted">read-only &mdash; the commissioner enters results</span>`}</div>`;
+  const s = sessions().find(x => gw >= x.start && gw <= x.end);
+  html += `<p class="muted">GW ${gw} is in Session ${s.n} (GW${s.start}&ndash;${s.end}, buy-backs through GW${s.mid}).</p>`;
+  const dl = deadlineOf(gw);
+
+  if (!dl) {
+    if (!admin) return html + `<p class="muted">GW ${gw} hasn't been opened yet.</p>`;
+    const defDl = Date.now() + 3 * 86400000;
+    return html + `<div class="card"><h3>Open GW ${gw}</h3>
+      <p class="muted">Set the pick deadline (usually just before the first kickoff):</p>
+      <div class="row"><input type="datetime-local" id="dl-input" value="${dtLocalValue(defDl)}">
+      <button class="act" onclick="openGw(${gw})">Open GW ${gw} for picks</button></div></div>`;
+  }
+  const sealed = Date.now() >= dl;
+  html += `<div class="sealed"><strong>GW ${gw}</strong> &mdash; deadline ${esc(fmtDeadline(dl))}
+    ${sealed ? `<span class="st-dead">SEALED</span>` : `<span class="st-alive">OPEN &mdash; ${fmtCountdown(dl)} left</span>`}</div>`;
+  if (admin) html += `<div class="row"><input type="datetime-local" id="dl-edit" value="${dtLocalValue(dl)}">
+    <button class="act ghost" onclick="editDeadline(${gw})">Change deadline</button>
+    <button class="act warn" onclick="clearGw(${gw})">Delete GW ${gw}</button></div>`;
+
+  if (!sealed) {
+    const E = runSession(s);
+    const aliveIds = E.ids.filter(pid => E.st[pid].alive || (C.buybacks[s.n] || {})[pid] === gw);
+    const inCount = aliveIds.filter(pid => storedPick(gw, pid)).length;
+    return html + `<p class="muted">Picks are sealed until the deadline. ${inCount}/${aliveIds.length} picked in.</p>`;
+  }
+
+  /* sealed: effective picks grouped by team, W/D/L entry */
+  const E = runSession(s);
+  const byTeam = {};
+  for (const pid of E.ids) {
+    const pk = E.st[pid].picks[gw];
+    if (pk) (byTeam[pk.team] = byTeam[pk.team] || []).push({ pid, auto: pk.auto });
+  }
+  const teams = Object.keys(byTeam).sort((a, b) =>
+    (teamById(a)?.name || "").localeCompare(teamById(b)?.name || ""));
+  if (!teams.length) return html + `<p class="muted">Nobody was in this gameweek.</p>`;
+  const res = resultsOf(gw);
+  html += `<h3>Picked teams &mdash; enter results</h3>
+  <table><tr><th>Team</th><th>Picked by</th><th>Result</th></tr>`;
+  for (const t of teams) {
+    const r = res[t] || "";
+    html += `<tr><td class="mgr-name">${esc(teamById(t)?.name || "?")}</td>
+      <td>${byTeam[t].map(x => esc(playerName(x.pid)) + (x.auto ? ` <span class="auto-tag">A</span>` : "")).join(", ")}</td>
+      <td class="resbtns">${["W","D","L"].map(v => admin
+        ? `<button class="${r === v ? "on-" + v : ""}" onclick="setResult(${gw},'${t}','${v}')">${v}</button>`
+        : `<span class="res-${v.toLowerCase()}" style="margin-right:8px">${r === v ? v : ""}</span>`).join("")}</td></tr>`;
+  }
+  html += `</table>`;
+  if (admin) {
+    const missing = teams.filter(t => !res[t]).length;
+    html += `<p class="muted">${missing ? `${missing} result${missing > 1 ? "s" : ""} still to enter.`
+      : `All results in. Eliminations update everywhere instantly &mdash; open GW ${gw + 1} when ready.`}</p>`;
+  }
+  return html;
+}
+function setViewGw(g) { viewGw = g; render(); }
+async function openGw(gw) {
+  if (!isAdmin()) return;
+  const v = $("dl-input").value;
+  if (!v) { flash("set a deadline"); return; }
+  const ms = new Date(v).getTime();
+  if (ms < Date.now()) { flash("deadline is in the past"); return; }
+  await F.setDoc(F.doc(db, "gws", String(gw)), { deadline: ms }, { merge: true });
+  await logTxn(`GW ${gw} open — picks lock ${fmtDeadline(ms)}`);
+  flash(`GW ${gw} open for picks`);
+}
+async function editDeadline(gw) {
+  if (!isAdmin()) return;
+  const v = $("dl-edit").value;
+  if (!v) return;
+  await F.setDoc(F.doc(db, "gws", String(gw)), { deadline: new Date(v).getTime() }, { merge: true });
+  flash("deadline updated");
+}
+async function setResult(gw, teamId, r) {
+  if (!isAdmin()) return;
+  await F.setDoc(F.doc(db, "gws", String(gw)),
+    { results: { [teamId]: r } }, { merge: true });
+}
+async function clearGw(gw) {
+  if (!isAdmin()) return;
+  if (!confirm(`Delete GW ${gw} entirely (deadline, results AND everyone's picks)?`)) return;
+  await F.deleteDoc(F.doc(db, "gws", String(gw)));
+  await F.deleteDoc(F.doc(db, "picks", String(gw)));
+  flash(`GW ${gw} cleared`);
+}
+
+/* ================= chat ================= */
+function renderChat() {
+  let html = `<h2>League chat</h2><div class="chat-log" id="chat-log">`;
+  if (!C.chat.length) html += `<p class="muted">Nothing yet. Set the tone.</p>`;
+  for (const msg of C.chat)
+    html += `<div class="chat-msg"><span class="who">${esc(msg.name)}</span>
+      <span class="when">${fmtWhen(msg.ts)}</span><br>${esc(msg.text)}</div>`;
+  html += `</div>`;
+  if (user) {
+    html += `<div class="row"><input id="chat-input" placeholder="Say something&hellip;" style="flex:1"
+      onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="act" onclick="sendChat()">Send</button></div>`;
+  } else html += `<p class="muted">Sign in to post.</p>`;
+  return html;
+}
+async function sendChat() {
+  const el = $("chat-input");
+  const text = el.value.trim();
+  if (!text) return;
+  const name = me()?.name || (isAdmin() ? "Commissioner" : user?.email || "?");
+  el.value = "";
+  await F.addDoc(F.collection(db, "chat"), { ts: F.serverTimestamp(), name, text });
+}
+
+/* ================= settings ================= */
+function renderSettings() {
+  if (!isAdmin())
+    return `<p class="muted" style="margin-top:20px">Settings are commissioner-only.
+      ${user ? "" : "Sign in with Google (top right)."}</p>`;
+  const c = C.config;
+  let html = `<h2>League</h2>
+  <div class="row">
+    <label>Name <input value="${esc(c.leagueName)}" onchange="saveLeague('leagueName',this.value)"></label>
+    <label>Commissioner email <input value="${esc(c.commissionerEmail || "")}" style="width:240px"
+      onchange="saveLeague('commissionerEmail',this.value.trim())"></label>
+  </div>
+  <p class="muted">The commissioner email always has admin access. Change it to hand off the league.</p>
+
+  <h2>Sessions</h2>
+  <p class="muted">Two independent survivor rounds. Team-usage resets between sessions; each crowns its own champion.
+    Buy-backs are allowed through the "buy-back thru" GW.</p>
+  <table style="max-width:480px"><tr><th></th><th class="num">First GW</th><th class="num">Last GW</th><th class="num">Buy-back thru</th></tr>`;
+  for (const s of sessions()) {
+    html += `<tr><td class="mgr-name">Session ${s.n}</td>
+      ${["start","end","mid"].map(k => `<td class="num"><input type="number" min="1" max="38" style="width:60px"
+        value="${s[k]}" onchange="saveSession(${s.n},'${k}',+this.value)"></td>`).join("")}</tr>`;
+  }
+  html += `</table>
+
+  <h2>Teams</h2>
+  <p class="muted">${(C.teams?.list || []).length
+    ? `<strong>${C.teams.list.length} teams loaded.</strong> Re-importing replaces the list (team names are matched
+       by name, so picks survive a re-import if names don't change).`
+    : "Not loaded — enter the 20 PL teams before opening GW 1."}
+    <br>One per line, optionally with a short code: <code>Manchester City | MCI</code></p>
+  <textarea id="teams-input" rows="6" style="width:100%" placeholder="Arsenal | ARS
+Aston Villa | AVL
+Manchester City | MCI
+&hellip;">${esc((C.teams?.list || []).map(t => `${t.name} | ${t.short}`).join("\n"))}</textarea>
+  <div class="row"><button class="act" onclick="importTeams()">Save teams</button></div>
+
+  <h2>Players</h2>
+  <p class="muted">Players sign in with Google; their account is matched by email. Add everyone before GW 1
+    (late joiners inherit auto-picks for missed weeks). Admins get full commissioner powers.</p>
+  <table><tr><th>Player</th><th>Google email</th><th>Admin</th><th></th></tr>`;
+  for (const p of C.players) {
+    html += `<tr><td class="mgr-name">${esc(p.name)}</td>
+      <td><input style="width:220px" value="${esc(p.email || "")}" placeholder="unassigned"
+        onchange="setPlayerField('${p.id}','email',this.value.trim().toLowerCase())"></td>
+      <td><input type="checkbox" ${p.admin ? "checked" : ""}
+        onchange="setPlayerField('${p.id}','admin',this.checked)"></td>
+      <td><button class="tiny" onclick="renamePlayer('${p.id}')">rename</button>
+          <button class="tiny del" onclick="deletePlayer('${p.id}')">delete</button></td></tr>`;
+  }
+  html += `</table>
+  <div class="row">
+    <input id="new-player" placeholder="Player name" onkeydown="if(event.key==='Enter')addPlayer()">
+    <button class="act" onclick="addPlayer()">Add player</button>
+  </div>
+
+  <h2>Sharing &amp; data</h2>
+  <p class="muted">Download a copy with the database connection baked in &mdash; that's the file you deploy
+    (GitHub Pages) or send around. Remember: any live domain must be in Firebase's
+    <strong>Authentication &rarr; Authorized domains</strong> or Google sign-in fails there.</p>
+  <div class="row"><button class="act" onclick="bakeDownload()">Download shareable copy</button>
+  <button class="act ghost" onclick="exportBackup()">Export data backup (.json)</button></div>
+
+  <p class="muted" style="margin-top:14px">Friends-league security: the database is open by design; picks are
+    hidden client-side only. The log keeps everyone accountable.</p>`;
+  return html;
+}
+async function saveLeague(key, val) { await saveConfig({ [key]: val }); flash("saved"); }
+async function saveSession(n, key, val) {
+  if (!val || val < 1 || val > 38) { flash("1–38 only"); render(); return; }
+  await saveConfig({ ["s" + n]: { ...sessionByN(n), [key]: val } });
+  flash("saved");
+}
+async function importTeams() {
+  const lines = $("teams-input").value.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) { flash("enter the team list first"); return; }
+  const list = [], seen = new Set();
+  for (const line of lines) {
+    const [name, short] = line.split("|").map(x => (x || "").trim());
+    if (!name) continue;
+    const id = slug(name);
+    if (seen.has(id)) { flash(`duplicate team: ${name}`); return; }
+    seen.add(id);
+    list.push({ id, name, short: (short || name.slice(0, 3)).toUpperCase().slice(0, 3) });
+  }
+  await F.setDoc(F.doc(db, "meta", "teams"), { list, count: list.length, updated: F.serverTimestamp() });
+  await logTxn(`Commissioner loaded ${list.length} teams`);
+  flash(`${list.length} teams saved`);
+}
+async function addPlayer() {
+  const el = $("new-player");
+  const name = el.value.trim();
+  if (!name) return;
+  await F.setDoc(F.doc(db, "players", uid()), { name, email: "", admin: false });
+  el.value = "";
+}
+async function renamePlayer(pid) {
+  const p = playerById(pid);
+  const name = prompt("Player name:", p.name);
+  if (name && name.trim()) await F.updateDoc(F.doc(db, "players", pid), { name: name.trim() });
+}
+async function setPlayerField(pid, key, val) {
+  await F.updateDoc(F.doc(db, "players", pid), { [key]: val }); flash("saved");
+}
+async function deletePlayer(pid) {
+  const p = playerById(pid);
+  if (!confirm(`Delete ${p.name}? Their pick history disappears from the board.`)) return;
+  await F.deleteDoc(F.doc(db, "players", pid));
+  await logTxn(`Commissioner removed ${p.name}`);
+}
+function bakeDownload() {
+  const cfg = getConfig();
+  if (!cfg) { flash("no config to bake"); return; }
+  const mainEl = $("main");
+  const saved = mainEl.innerHTML;
+  mainEl.innerHTML = "";
+  let src = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+  mainEl.innerHTML = saved;
+  const marker = "/*__C" + "FG__*/null";
+  if (!src.includes(marker)) { flash("bake failed — send this file plus the config instead"); return; }
+  src = src.replace(marker, JSON.stringify(cfg));
+  const blob = new Blob([src], { type: "text/html" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (C.config?.leagueName || "survivor-league").toLowerCase().replace(/\s+/g, "-") + ".html";
+  a.click(); URL.revokeObjectURL(a.href);
+  flash("shareable copy downloaded");
+}
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(C, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "survivor-backup.json";
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ================= expose handlers ================= */
+Object.assign(window, { setTab, sessionBtn, claimLeague, saveCfgInput, clearCfg, createLeague,
+  setViewSession, pickTeam, cancelPickSel, confirmPick, buyBack,
+  setViewGw, openGw, editDeadline, setResult, clearGw, sendChat,
+  saveLeague, saveSession, importTeams, addPlayer, renamePlayer, setPlayerField, deletePlayer,
+  bakeDownload, exportBackup });
+
+boot();
+/* keep countdowns & deadline flips fresh */
+setInterval(() => { if (db && allReady() && document.visibilityState === "visible") render(); }, 30000);
+</script>
+</body>
+</html>
